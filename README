@@ -1,0 +1,147 @@
+NAME
+    cdlintern.pl - A perl utility to display the different visited
+    directories.
+
+SYNOPSIS
+       cdl var : will search in CDLOG any file/dir name containing var
+       cdl <regexp> : will search in CDLOG any file/dir which matches
+                    regular expression regexp.
+       cdl -h : to print this help
+       cdl -c : to clean the $CDLOG ( removing unused item )
+       cdl -d abc : It is similar to cdl abc but it will search from
+           current directory
+       cdl -? : This will print last 10 entries.
+       cdl -n? : This will print last n entries.
+
+DESCRIPTION
+    It is designed to be used from bash. The idea is that on every directory
+    change by cd command, we save the directory into a log file. Any time,
+    to go back to a previous visited directory, we can use cdl command with
+    directory name by regular expression.
+
+    To be used from bash, we have to define two function named cd and cdl.
+    My functions are attached in this documentation. Log file name is given
+    by a environment variable CDLOG. By default shell function cd sets the
+    CDLOG to $HOME/tmp/cdsave/`hostname`cdlog.txt. If directory doesn't
+    exist then it creates it.
+
+    On execution when it prints "Enter directory Option/Command" . When we
+    enter the number, it changes the directory to the directory. If we don't
+    enter the number, it treats it as a shell command and tries to execute
+    it. The usefulness of the this feature is that in shell command we can
+    refer the corresponding directories by their number using $5. In the
+    command we can use $n to replace the directory name. e.g command : diff
+    $5 $6 will run the diff command with directory entry 5 and directory
+    entry 6.
+
+    Advantages over pushd/popd/dirs :
+
+    * It saves the visited directoy in log file so it could remain save for
+    days and months until you delete it. Also it remain valid for several
+    invocation of shell.
+    * Any shell operation ( e.g copying/moving files) between directories
+    with deep nesting is much simpler.
+
+CONFIGURATION
+    Copy this script anywhere in the directory which is inside PATH. I
+    prefer to put it in ~/bin directory.
+
+    Configuring .bashrc: Here are the bash functions which need. To use it
+    from .bashrc we need to declare the two functions.
+
+function cd () 
+{ 
+	set +u
+	CDLOG_File=~/tmp/cdsave/cdlog`hostname`.txt
+	#echo "File is $CDLOG_File"
+	if [ -z "$CDLOG"  ]; then
+		export CDLOG=$CDLOG_File
+		touch $CDLOG
+		chmod 666 $CDLOG
+	fi
+	CDLOG_Dir=`dirname $CDLOG_File`
+	#echo "Dir is $CDLOG_Dir"
+	if [ ! -d  "$CDLOG_Dir" ]; then
+		mkdir -p ~/tmp/cdsave
+	fi
+	if [ $#  -eq 0 ]
+	then
+		builtin cd $HOME
+	else
+		#echo "now I will cd to $HOME";
+		builtin cd "$*"
+	fi
+	pwd >>$CDLOG
+	unset CDLOG_File
+	unset CDLOG_Dir
+	#echo "Hello at End"
+}
+	
+function cdl () 
+{
+	set +u
+	if [ -z "$CDLOG" ]
+	then
+		cd "."
+		#source ~/bin/mycd.sh "."
+	fi
+	if test -e ~/bin/cdlintern.pl 
+	then
+		#echo "Running ~/bin/cdlintern.pl";
+		perl ~/bin/cdlintern.pl $*
+	else
+		#echo "Running cdlintern.pl in path ";
+		#which cdlintern.pl
+		perl -S cdlintern.pl $*
+	fi
+	if [ -f "$CDLOG.sh" ]
+	then
+		source "$CDLOG.sh" 
+	else
+		echo "$CDLOG.sh doesn't exist"
+	fi
+}
+export BASH_VERSION
+
+EXAMPLES
+    [~] $ cd /tmp/
+    [/tmp] $ cd /var
+    [/var] $ cdl
+    1 ----> /tmp <--- 1
+    2 ----> /var <--- 2
+    Enter directory Option/Command : 1
+    cd /tmp
+    CommandLine = cd /tmp ; CDORGCMD="cdl "; history -s cd /tmp
+    [/tmp] $ cd /usr/bin
+    [/usr/bin] $ cd /usr/local/bin
+    [/usr/local/bin] $ cdl bin$
+    1 ----> /usr/bin <--- 1
+    2 ----> /usr/local/bin <--- 2
+    Enter directory Option/Command : 1
+    cd /usr/bin
+    CommandLine = cd /usr/bin ; CDORGCMD="cdl bin$"; history -s cd /usr/bin
+    [/usr/bin] $ cdl bin$
+    1 ----> /usr/bin <--- 1
+    2 ----> /usr/local/bin <--- 2
+    Enter directory Option/Command : ln -s $1/customapp $2/myapp
+    ln -s /usr/bin/customapp /usr/local/bin/myapp
+    CommandLine = ln -s /usr/bin/customapp /usr/local/bin/myapp ;
+    CDORGCMD="cdl bin$"; history -s ln -s /usr/bin/customapp
+    /usr/local/bin/myapp
+    [/usr/bin] $
+
+ENVIRONMENT VARIABLE
+    CDLOG contains the name of the log file where it saves the visited
+    directories. The schell function cd set's it to default
+    ~/tmp/cdsave/cdlog`hostname`.txt. You can set it to /tmp/cdlog.txt for
+    simplicity.
+
+PREREQUISITES
+
+Currently used under bash. 
+
+COREQUISITES
+    any
+
+    CPAN/Administrative CPAN
+
